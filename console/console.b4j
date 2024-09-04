@@ -1,0 +1,182 @@
+﻿AppType=StandardJava
+Build1=Default,b4j.example
+Group=Default Group
+Library1=javaobject
+Library2=jcore
+Library3=jokhttputils2
+Library4=jrandomaccessfile
+Module1=DBRequestManager
+NumberOfFiles=0
+NumberOfLibraries=4
+NumberOfModules=1
+Version=10
+@EndOfDesignText@
+'Non-UI application (console / server application)
+#Region Project Attributes 
+	#CommandLineArgs:
+	#MergeLibraries: True 
+#End Region
+
+Sub Process_Globals
+	Private sys As JavaObject
+	Private User As String
+	Private Password As String
+	Public const rdcLink As String = "http://192.168.50.42:17178/rdc"
+	Type DBResult (Tag As Object, Columns As Map, Rows As List)
+	Type DBCommand (Name As String, Parameters() As Object)
+End Sub
+
+Sub AppStart (Args() As String)
+	sys.InitializeStatic("java.lang.System")
+	ShowLogin
+	StartMessageLoop
+End Sub
+
+Sub Input (Prompt As String) As String
+	Print(Prompt)
+	Dim scanner As JavaObject
+	scanner.InitializeNewInstance("java.util.Scanner", Array As Object(sys.GetField("in")))
+	Return scanner.RunMethod("nextLine", Null)
+End Sub
+
+Sub Print (Message As String)
+	Dim out As JavaObject = sys.GetField("out")
+	out.RunMethod("print", Array As String(Message))
+End Sub
+
+Sub ShowMenu
+	Log("")
+	Log("JRDC2 Test Console")
+	Log("Choose query to execute:")
+	Log("1. List my animals")
+	Log("2. Update my animal")
+	Log("3. Add a new animal")
+	Log("4. Remove my animal")
+	Log("x to log out")
+	Dim user_input As String = Input("> ")
+	Select user_input
+		Case "1"
+			ListAnimals
+		Case "2"
+			UpdateAnimal
+		Case "3"
+			InsertAnimal
+		Case "4"
+			DeleteAnimal
+		Case "x"
+			ShowLogin
+			Return
+		Case Else
+			Log("Invalid input")
+			Return
+	End Select
+End Sub
+
+Sub ShowLogin
+	Log("")
+	User = ""
+	Password = ""
+	Log("JRDC2 Test Console")
+	Do Until User.Trim.Length > 0
+		User = Input("Please enter your user name: ").Trim
+	Loop
+	Do Until Password.Trim.Length > 0
+		Password = Input("Please enter your password: ")
+	Loop
+	ShowMenu
+End Sub
+
+Sub CreateRequest As DBRequestManager
+	Dim req As DBRequestManager
+	req.Initialize(Me, rdcLink)
+	Return req
+End Sub
+
+Sub CreateCommand (Name As String, Parameters() As Object) As DBCommand
+	Dim command As DBCommand
+	command.Initialize
+	command.Name = Name
+	If Parameters <> Null Then command.Parameters = Parameters
+	Return command
+End Sub
+
+Sub ListAnimals
+	Dim req As DBRequestManager = CreateRequest
+	Dim com As DBCommand = CreateCommand("sql.select_user_animals", Array As Object(User, Password))
+	Wait For (req.ExecuteQuery(com, 0, Null)) JobDone (job As HttpJob)
+	If job.Success Then
+		req.HandleJobAsync(job, "req")
+		Wait For (req) req_Result (res As DBResult)
+		Log("")
+		req.PrintTable(res) ' if credential matched
+	Else
+		Log(job.ErrorMessage)
+	End If
+	job.Release
+	ShowMenu
+End Sub
+
+Sub UpdateAnimal
+	Log("")
+	Dim value As String
+	Do Until value.Trim.Length > 0
+		Log("Update Animal")
+		value = Input("Please enter animal id: ")
+	Loop
+	Dim id As Int = value
+	value = ""
+	Do Until value.Trim.Length > 0
+		value = Input("Please enter animal name: ")
+	Loop
+	Dim name As String = value
+	Dim com As DBCommand = CreateCommand("sql.update_user_animals", Array As Object(name, id, User, Password))
+	Dim job As HttpJob = CreateRequest.ExecuteCommand(com, Null)
+	Wait For (job) JobDone (job As HttpJob)
+	If job.Success Then
+		'Log("Animal updated!") ' if credential matched
+	Else
+		Log(job.ErrorMessage)
+	End If
+	job.Release
+	ShowMenu
+End Sub
+
+Sub InsertAnimal
+	Log("")
+	Dim value As String
+	Do Until value.Trim.Length > 0
+		Log("Add Animal")
+		value = Input("Please enter animal name: ")
+	Loop
+	Dim name As String = value
+	Dim com As DBCommand = CreateCommand("sql.insert_user_animals", Array As Object(name, User, Password))
+	Dim job As HttpJob = CreateRequest.ExecuteCommand(com, Null)
+	Wait For (job) JobDone (job As HttpJob)
+	If job.Success Then
+		'Log("Animal added!") ' if credential matched
+	Else
+		Log(job.ErrorMessage)
+	End If
+	job.Release
+	ShowMenu
+End Sub
+
+Sub DeleteAnimal
+	Log("")
+	Dim value As String
+	Do Until value.Trim.Length > 0
+		Log("Delete Animal")
+		value = Input("Please enter animal id: ")
+	Loop
+	Dim id As Int = value
+	Dim com As DBCommand = CreateCommand("sql.delete_user_animals", Array As Object(id, User, Password))
+	Dim job As HttpJob = CreateRequest.ExecuteCommand(com, Null)
+	Wait For (job) JobDone (job As HttpJob)
+	If job.Success Then
+		'Log("Animal removed!") ' if credential matched
+	Else
+		Log(job.ErrorMessage)
+	End If
+	job.Release
+	ShowMenu
+End Sub

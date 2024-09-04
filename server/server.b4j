@@ -1,0 +1,80 @@
+﻿AppType=StandardJava
+Build1=Default,b4j.jrdc2.server,SQLite
+Build2=MySQL,b4j.jrdc2.server,MySQL
+File1=config.properties
+FileGroup1=Default Group
+Group=Default Group
+Library1=jcore
+Library2=jserver
+Library3=jsql
+Library4=jrandomaccessfile
+Library5=javaobject
+Module1=RDCConnector
+Module2=RDCHandler
+Module3=TestHandler
+NumberOfFiles=1
+NumberOfLibraries=5
+NumberOfModules=3
+Version=10
+@EndOfDesignText@
+'Non-UI application (console / server application)
+#Region  Project Attributes 
+	#CommandLineArgs:
+	#MergeLibraries: True 
+#End Region
+
+#If MySQL
+#AdditionalJar: mysql-connector-java-8.0.30
+#Else If SQLite
+#AdditionalJar: sqlite-jdbc-3.39.3.0
+#End If
+
+Sub Process_Globals
+	Public srvr As Server
+	Public rdcConnector1 As RDCConnector
+	Public const VERSION As Float = 2.25
+	Public config As Map
+	Private SslPort As Int
+	Private KeyStoreDir As String
+	Private KeyStoreFile As String
+	Private KeyStorePassword As String
+	Type DBCommand (Name As String, Parameters() As Object)
+	Type DBResult (Tag As Object, Columns As Map, Rows As List)
+End Sub
+
+' <link>Open in browser|http://127.0.0.1:17178/test</link>
+Sub AppStart (Args() As String)
+	srvr.Initialize("")
+	config = LoadConfigMap
+	rdcConnector1.Initialize
+	rdcConnector1.CheckDatabase(config)
+	StartMessageLoop
+End Sub
+
+Public Sub StartServer
+	Log("Starting server...")
+	srvr.Port = config.Get("ServerPort")
+	If IsNumber(config.Get("SSLPort")) Then SslPort = config.Get("SSLPort")
+	If SslPort > 0 Then ConfigureSSL
+	
+	srvr.AddHandler("/test", "TestHandler", False)
+	srvr.AddHandler("/rdc", "RDCHandler", False)
+	srvr.Start
+	Log($"jRDC Server is running (version = $1.2{VERSION})"$)
+	rdcConnector1.StartConnectionPool
+End Sub
+
+Private Sub ConfigureSSL
+	Dim ssl As SslConfiguration
+	ssl.Initialize
+	ssl.SetKeyStorePath(KeyStoreDir, KeyStoreFile)
+	ssl.KeyStorePassword = KeyStorePassword
+	'ssl.KeyManagerPassword = ""
+	srvr.SetSslConfiguration(ssl, SslPort)
+	'add filter to redirect all traffic from http to https (optional)
+	srvr.AddFilter("/*", "HttpsFilter", False)
+End Sub
+
+Private Sub LoadConfigMap As Map
+	Return File.ReadMap(File.DirAssets, "config.properties")
+End Sub
