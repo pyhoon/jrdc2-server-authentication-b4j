@@ -68,7 +68,7 @@ Sub ShowMenu
 			Return
 		Case Else
 			Log("Invalid input")
-			Return
+			ShowMenu
 	End Select
 End Sub
 

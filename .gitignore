@@ -5,5 +5,8 @@
 *.log
 
 # ignore ALL files in these directories
-AutoBackups/
-Files/
+server/AutoBackups/
+server/Objects/
+server/Files/
+console/AutoBackups/
+console/Objects/
