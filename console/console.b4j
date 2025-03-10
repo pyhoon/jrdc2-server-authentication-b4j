@@ -65,7 +65,6 @@ Sub ShowMenu
 			DeleteAnimal
 		Case "x"
 			ShowLogin
-			Return
 		Case Else
 			Log("Invalid input")
 			ShowMenu
